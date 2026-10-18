@@ -1,6 +1,6 @@
 streamlit
-gspread
-google-auth
-pandas
-plotly
+supabase
 google-generativeai
+plotly
+pandas
+gspread
