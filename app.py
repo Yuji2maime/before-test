@@ -6,8 +6,7 @@ import plotly.express as px
 import json
 
 # ページ設定
-st.set_page_config(page_title="思考・表現力セッション（事前提出用）", layout="wide")
-
+st.set_page_config(page_title="思考・表現力セッション（事前提出用） ", page_icon="🔵", layout="wide")
 # ==========================================
 # 🔑 認証・API設定
 # ==========================================
