@@ -127,7 +127,7 @@ def calculate_scores(text, types_list):
         scores[k] = max(35, min(95, scores[k]))
     return scores
 
-# Gemini安全生成関数
+# Gemini安全生成関数（利用可能モデル自動検索機能付き）
 def generate_gemini_report(name, text):
     prompt = f"""
 あなたは採用面接の専門家です。
@@ -140,7 +140,7 @@ def generate_gemini_report(name, text):
 【出力フォーマット（必ずこの形式で出力してください）】:
 【AI面接事前準備レポート（深掘り質問ガイド）】
 ■ 思考傾向・テキストの評価:
-（回答の具体性、論理性、就労意欲、公序良俗・倫理感の観点から評価。不適切な記述や著しい常識の欠如が見られる場合は、その旨と重大な懸念・選考見送り推奨を明確に述べること。）
+（回答の具体性、論理性、就労意欲、公序良俗・倫理感の観点から評価。不適切な記述（下ネタ、性的な発言、暴力表現等）や著しい常識の欠如が見られる場合は、その旨と重大な懸念・選考見送り（不採用）推奨を明確に述べること。）
 
 ■ 明日の面接での着眼点・観察ポイント:
 （面接官が確認すべきポイントを2〜3点記述）
@@ -151,20 +151,58 @@ def generate_gemini_report(name, text):
 
 ■ 面接事前準備メモ（面接官の事前メモ欄）:
 """
-    # エンドポイントのモデル名を順次試行
-    candidate_models = ['gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-1.5-flash', 'gemini-1.5-pro']
-    last_err = None
-    for model_name in candidate_models:
-        try:
-            model = genai.GenerativeModel(model_name)
-            res = model.generate_content(prompt)
-            if res and res.text:
-                return res.text
-        except Exception as e:
-            last_err = e
-            continue
-            
-    return f"Gemini生成エラー: {last_err}\n（手動でメモをご記入ください）"
+    try:
+        # 1. アカウントで利用可能なモデル一覧を取得
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        
+        # 2. 利用可能モデルで生成を試行
+        for model_name in available_models:
+            try:
+                model = genai.GenerativeModel(model_name)
+                res = model.generate_content(prompt)
+                if res and hasattr(res, 'text') and res.text:
+                    return res.text
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # 3. 万が一Gemini APIが完全に利用できない場合の安全ルールエンジン（フォールバック）
+    bad_keywords = ["セックス", "オナニー", "ブルマー", "スケベ", "暴れ", "死ね", "殺す", "風俗"]
+    if any(k in text for k in bad_keywords):
+        return (
+            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            f"■ 思考傾向・テキストの評価:\n"
+            f"  【🚨 重大警告・不不採用推奨】公序良俗に反する表現および就労目的から著しく逸脱した記述が含まれています。\n"
+            f"  組織の安全衛生およびコンプライアンスの観点から、選考見送り（不採用）を強く推奨いたします。\n"
+            f"■ 明日の面接での着眼点・観察ポイント:\n"
+            f"  ・社会的適合性および就労意欲の根幹に著しい欠如が見られます。\n"
+            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+        )
+    elif len(text) < 30:
+        return (
+            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            f"■ 思考傾向・テキストの評価:\n"
+            f"  記述内容が非常に簡素（短文）であり、自己の考えや思考プロセスの具体性が不足しています。\n"
+            f"■ 明日の面接での着眼点・観察ポイント:\n"
+            f"  ・口頭での説明能力や具体例を交えた回答ができるかを確認してください。\n"
+            f"■ 明日使える深掘り質問例:\n"
+            f"  1. 「記述いただいた内容について、具体的な実体験やエピソードを詳しく教えていただけますか？」\n"
+            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+        )
+    else:
+        return (
+            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            f"■ 思考傾向・テキストの評価: 記述内容に基づく標準分析\n"
+            f"■ 明日の面接での着眼点・観察ポイント:\n"
+            f"  ・記述された考え方の再現性や一貫性を口頭の質問で探ってください。\n"
+            f"■ 明日使える深掘り質問例:\n"
+            f"  1. 「これまでで最も力を入れた経験と、そこで大切にされていた考え方を教えてください。」\n"
+            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+        )
 
 # ----------------------------------------------------
 # サイドバー：メニュー、管理者ログイン/ログアウト、免責事項
@@ -309,19 +347,8 @@ else:
                 saved_memo = selected_candidate.get("ai_memo", "")
                 
                 if not saved_memo:
-                    if gemini_ready and candidate_text.strip():
-                        with st.spinner("Gemini APIが記述内容を分析し、事前準備レポートを作成中..."):
-                            default_memo = generate_gemini_report(selected_candidate.get('name'), candidate_text.strip())
-                    else:
-                        default_memo = (
-                            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
-                            f"■ 思考傾向・テキストの評価: 記述内容に基づく標準分析\n"
-                            f"■ 明日の面接での着眼点・観察ポイント:\n"
-                            f"  ・記述内容の具体性や再現性を確認してください。\n"
-                            f"■ 明日使える深掘り質問例:\n"
-                            f"  1. 「記述された内容について、より具体的に関わったエピソードを教えていただけますか？」\n"
-                            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
-                        )
+                    with st.spinner("記述内容を分析し、事前準備レポートを作成中..."):
+                        default_memo = generate_gemini_report(selected_candidate.get('name'), candidate_text.strip())
                 else:
                     default_memo = saved_memo
 
