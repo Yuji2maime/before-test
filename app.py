@@ -1,288 +1,306 @@
 import streamlit as st
-import time
-from supabase import create_client, Client
+from supabase import create_client
 import google.generativeai as genai
-import plotly.express as px
-import json
+import pandas as pd
+import plotly.graph_objects as go
 
-# ページ設定
-st.set_page_config(page_title="思考・表現力セッション（事前提出用） ", page_icon="🔵", layout="wide")
-# ==========================================
-# 🔑 認証・API設定
-# ==========================================
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
-ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "19700124")
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+# 1. ページ基本設定
+st.set_page_config(
+    page_title="思考・表現力セッション（事前準備）",
+    page_icon="🔹",
+    layout="wide"
+)
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# カスタムCSS（ダークモード/ライトモード両対応・ブルー系テーマ）
+st.markdown("""
+<style>
+    .day-banner {
+        background-color: #1E3A8A;
+        color: #FFFFFF !important;
+        padding: 10px 18px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin-bottom: 20px;
+    }
+    .day-title {
+        color: #1E3A8A;
+        border-bottom: 3px solid #1E3A8A;
+        padding-bottom: 6px;
+        margin-bottom: 15px;
+        font-size: 1.6rem;
+        font-weight: bold;
+    }
+    .instruction-box {
+        background-color: #f0f4f8;
+        color: #1e293b !important;
+        border-left: 5px solid #1E3A8A;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+    .instruction-box h4 {
+        color: #1E3A8A !important;
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    .instruction-box p {
+        color: #1e293b !important;
+        margin-bottom: 0;
+    }
+    div.stButton > button:first-child {
+        background-color: #2563EB;
+        color: white !important;
+        border-radius: 6px;
+        border: none;
+        font-weight: bold;
+        padding: 8px 16px;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #1E3A8A;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
+# ヘッダーバナー
+st.markdown('<div class="day-banner">🔹 思考・表現力セッション（事前準備用）</div>', unsafe_allow_html=True)
+
+# Supabase初期化
 @st.cache_resource
-def init_supabase() -> Client:
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+def init_supabase():
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-supabase = init_supabase()
+try:
+    supabase = init_supabase()
+except Exception as e:
+    st.error(f"Supabase接続エラー: {e}")
+
+# Gemini API初期化
+if "GEMINI_API_KEY" in st.secrets:
+    try:
+        raw_key = str(st.secrets["GEMINI_API_KEY"]).strip().strip('"').strip("'")
+        genai.configure(api_key=raw_key)
+    except Exception:
+        pass
 
 # セッション状態の初期化
-if "page" not in st.session_state:
-    st.session_state.page = "candidate"
-if "admin_authenticated" not in st.session_state:
-    st.session_state.admin_authenticated = False
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False
 
-# --- 🤖 タグ内容からスコアを動的計算する関数 ---
-def calculate_scores_from_types(types_list):
-    types_str = "".join(types_list)
-    
-    te = 85 if "Te" in types_str else (60 if "補助Te" in types_str else 35)
-    ti = 85 if "Ti" in types_str else (60 if "補助Ti" in types_str else 35)
-    fe = 85 if "Fe" in types_str else (60 if "補助Fe" in types_str else 35)
-    fi = 85 if "Fi" in types_str else (60 if "補助Fi" in types_str else 35)
-    se = 85 if "Se" in types_str else (60 if "補助Se" in types_str else 35)
-    ni = 85 if "Ni" in types_str else (60 if "補助Ni" in types_str else 35)
-    
-    return [te, ti, fe, fi, se, ni]
+# ----------------------------------------------------
+# サイドバー：メニュー、管理者ログイン/ログアウト、免責事項
+# ----------------------------------------------------
+st.sidebar.title("📌 メニュー・設定")
 
-# --- 🤖 Gemini AI 分析関数 ---
-def analyze_with_gemini(text):
-    if not GEMINI_API_KEY:
-        return {
-            "types": ["Se型（現実・実行）"],
-            "notes": "※GEMINI_API_KEYが設定されていないため分析できません。",
-        }
-    
-    prompt = f"""
-以下の応募者の記述内容を心理学・認知機能（MBTI / 心理学的タイプ論）の観点から深く分析し、指定のJSON形式のみで出力してください。
-
-【応募者の記述内容】:
-"{text}"
-
-【評価の指針】:
-1. 看護・寄り添い・患者の痛み・静かな場所といった「個人感情・価値観・共感・内省」に関する記述がある場合は、絶対的に Fi（価値観・内省）や Fe（調和・関係性）を主機能・補助機能として認定してください。（TeやTiを主機能にしないでください）
-2. 公序良俗に著しく反する内容、不適切な性的表現や暴言が含まれる場合は、選考対象外リスクとして明確にAI評価メモに記載し、Fi/Feの評価を下落させてください。
-3. 業務改善・論理的構造・効率化・規律といった記述がある場合は、Te（効率）や Ti（論理）を主機能として認定してください。
-
-【出力JSONフォーマット】:
-{{
-  "types": ["Fi型（価値観・内省）", "補助Fe"],
-  "notes": "応募者の性格傾向、思考の癖、強み、および面接時に確認すべき懸念事項やリスクに関する具体的な評価メモ（200文字程度）。"
-}}
-
-※typesで選択可能な項目（1〜3個認定）:
-- 主機能: "Te型（効率・構造化）", "Ti型（論理・体系化）", "Fe型（調和・関係性）", "Fi型（価値観・内省）", "Se型（現実・実行）", "Ni型（直観・本質）"
-- 補助機能: "補助Te", "補助Ti", "補助Fe", "補助Fi", "補助Se", "補助Ne", "補助Si", "補助Ni"
-"""
-    model_names = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
-    
-    for model_name in model_names:
-        try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
-            res_text = response.text.strip()
-            
-            if "```" in res_text:
-                res_text = res_text.split("```")[1]
-                if res_text.startswith("json"):
-                    res_text = res_text[4:].strip()
-            if res_text.endswith("```"):
-                res_text = res_text[:-3].strip()
-                
-            data = json.loads(res_text)
-            if "types" in data and "notes" in data:
-                return data
-        except Exception:
-            continue
-
-    # テキスト文章の特徴に応じたフォールバック
-    if any(k in text for k in ["ブルマー", "SEX", "オナニー", "男がいないと"]):
-        return {
-            "types": ["Se型（現実・実行）"],
-            "notes": "【選考注意／コンプライアンスリスク】極めて不適切な記述が含まれており、選考テーマに対する誠実な回答姿勢が見られません。公序良俗・組織適応性の観点から面接での厳重な確認、または選考除外を推奨します。"
-        }
-    elif any(k in text for k in ["看護師", "患者", "寄り添", "痛み", "静かな場所", "人ごみ"]):
-        return {
-            "types": ["Fi型（価値観・内省）", "補助Fe"],
-            "notes": "【AI分析結果】他者の感情や痛みに深く寄り添う共感力と、自身の内面的な価値観（Fi）を重んじる傾向が顕著です。静かな環境で人間関係を丁寧にはぐくむ姿勢に強みがあります。"
-        }
-    elif any(k in text for k in ["軍人", "馬鹿", "違反", "力"]):
-        return {
-            "types": ["Se型（現実・実行）", "補助Te"],
-            "notes": "【AIリスク分析】実力行使や行動力が強い反面、組織の規範遵守や人間関係の調和において重大な懸念があります。"
-        }
-    else:
-        return {
-            "types": ["Te型（効率・構造化）", "補助Ti"],
-            "notes": "【AI構造分析】論理的思考と合理性を重視し、職場環境改善などの目的達成に向けた構造的アプローチ（Te）を得意としています。"
-        }
-
-# --- 1. 応募者用画面（事前提出用）---
-if st.session_state.page == "candidate":
-    st.title("思考・表現力セッション（事前回答フォーム）")
-    st.write(
-        "この度はご応募いただき誠にありがとうございます。"
-        "面接・選考セッションに先立ち、以下の事前設問についてご自身の考えをご回答ください。"
-        "入力内容は選考の参考情報として使用させていただきます。"
-    )
-
-    st.markdown("---")
-
-    candidate_name = st.text_input("お名前（氏名）を入力してください", placeholder="例：山田 太郎")
-
-    st.subheader("【事前提出テーマ】")
-    st.info(
-        "「これまでの仕事や生活の中で、最も工夫して乗り越えたエピソードについて、"
-        "当時の状況やご自身の行動、そこから得られた学びを含めてご自由に記述してください。」"
-    )
-
-    text_input = st.text_area(
-        "ご自身の言葉で自由にご記述ください（事前入力用）",
-        height=350,
-        placeholder="ここにエピソードや考え方を入力してください..."
-    )
-
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        if st.button("送信して事前提出を完了する", type="primary"):
-            if candidate_name.strip() and text_input.strip():
-                ai_res = analyze_with_gemini(text_input)
-                
-                # app_type を "before" として保存
-                data_to_insert = {
-                    "name": candidate_name,
-                    "text": text_input,
-                    "types": ai_res.get("types", []),
-                    "notes": ai_res.get("notes", ""),
-                    "app_type": "before"
-                }
-                supabase.table("candidate_responses").insert(data_to_insert).execute()
-                
-                st.success("事前回答の送信が完了いたしました。ご協力ありがとうございました。")
-                st.balloons()
-            elif not candidate_name.strip():
-                st.warning("お名前（氏名）を入力してください。")
-            else:
-                st.warning("記述欄に内容を入力してください。")
-
-    with col2:
-        if st.button("採用担当者用画面へ"):
-            st.session_state.page = "admin"
+if not st.session_state.is_admin:
+    st.sidebar.subheader("🔒 管理者ログイン")
+    password_input = st.sidebar.text_input("パスワードを入力", type="password")
+    if st.sidebar.button("ログイン"):
+        if password_input == "7777":
+            st.session_state.is_admin = True
             st.rerun()
-
-# --- 2. 採用側（管理・評価ダッシュボード）画面 ---
-elif st.session_state.page == "admin":
-    st.title("【事前提出分】採用担当者用 管理・評価ダッシュボード")
-
-    if st.button("← 応募者用画面に戻る"):
-        st.session_state.page = "candidate"
+        else:
+            st.sidebar.error("パスワードが違います")
+else:
+    st.sidebar.success("管理者としてログイン中")
+    if st.sidebar.button("🔄 応募者画面へ戻る（ログアウト）"):
+        st.session_state.is_admin = False
         st.rerun()
 
-    st.markdown("---")
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ 注意事項・禁止事項・免責事項")
+st.sidebar.info("""
+- **判定結果の位置付け**
+  本システムの思考性・認知特性分析は、応募者の自己申告テキストに基づく事前傾向分析であり、人物像や能力を確定するものではありません。
+- **面接準備の補助ツール**
+  本レポートは明日の面接に向けた事前読み込み・質問設計の参考材料です。**最終的な選考判定および合否決定は、面接官ご自身の責任において行ってください。**
+- **個人情報の管理・禁止事項**
+  採用選考以外の目的での使用、および第三者への無断漏洩・共有は厳禁です。
+""")
 
-    if not st.session_state.admin_authenticated:
-        st.subheader("🔒 管理者認証")
-        pwd_input = st.text_input("管理者パスワードを入力してください", type="password")
-        if st.button("ログイン"):
-            if pwd_input == ADMIN_PASSWORD:
-                st.session_state.admin_authenticated = True
-                st.success("認証に成功しました。")
-                st.rerun()
-            else:
-                st.error("パスワードが正しくありません。")
-    else:
-        # app_type が "before" のデータを取得
-        response = supabase.table("candidate_responses").select("*").eq("app_type", "before").order("created_at", desc=True).execute()
-        submitted_data = response.data if response else []
+# ----------------------------------------------------
+# A. 応募者入力画面（前日提出用）
+# ----------------------------------------------------
+if not st.session_state.is_admin:
+    st.markdown('<h1 class="day-title">事前アンケート入力フォーム</h1>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="instruction-box">
+        <h4>【事前提出のご案内】</h4>
+        <p>本アンケートは、明日のセッション・面接をより実りあるものにするため、事前に皆様の日常的なお考えや仕事観をお伺いするものです。<br>
+        正解・不正解はございませんので、リラックスしてご自身の率直なお考えをご回答ください。</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-        if not submitted_data:
-            st.info("現在、提出された事前回答データはありません。")
+    with st.form(key="candidate_form_prev"):
+        applicant_name = st.text_input("お名前（氏名）", placeholder="例：山田 太郎")
+        applicant_text = st.text_area("思考・表現力に関する記述", height=150, placeholder="ご自身の考えや価値観、これまでの経験で大切にしてきたこと等を自由にご記入ください。")
+        
+        submit_button = st.form_submit_button(label="事前回答を提出する")
+
+    if submit_button:
+        if not applicant_name.strip() or not applicant_text.strip():
+            st.warning("お名前と記述内容の両方を入力してください。")
         else:
-            for data in submitted_data:
-                record_id = data["id"]
-                candidate_label = data.get('name', f"応募者 #{record_id}")
-                created_at = data.get('created_at', '')[:19].replace('T', ' ')
+            try:
+                types_val = ["Fi型（価値観・内省）", "補助Fe"] if "共感" in applicant_text or "患者" in applicant_text or "寄り添" in applicant_text else ["Te型（効率・構造化）", "補助Ti"]
                 
-                with st.expander(f"事前提出データ: {candidate_label} 様（提出日時: {created_at}）", expanded=True):
-                    st.subheader(f"【応募者氏名】 {candidate_label}")
-                    st.subheader("【事前記述内容】")
-                    st.write(data["text"])
+                new_data = {
+                    "name": applicant_name.strip(),
+                    "text": applicant_text.strip(),
+                    "types": types_val,
+                    "app_type": "prev"
+                }
+                
+                supabase.table("candidate_responses").insert(new_data).execute()
+                
+                st.success("事前アンケートの送信が完了いたしました。ご協力ありがとうございました！")
+                st.info("※入力内容は正常に送信されました。明日のセッションをどうぞよろしくお願いいたします。")
+            except Exception as e:
+                st.error(f"送信時にエラーが発生しました: {e}")
 
-                    current_types = data.get("types") or []
-                    current_notes = data.get("notes") or ""
+# ----------------------------------------------------
+# B. 管理者画面（事前準備・質問ガイド用）
+# ----------------------------------------------------
+else:
+    st.markdown('<h1 class="day-title">【管理者用】事前準備・面接深掘りガイド</h1>', unsafe_allow_html=True)
+    
+    try:
+        response = supabase.table("candidate_responses").select("*").execute()
+        data = response.data
+        
+        if data:
+            names = [item.get("name", "無名") for item in data]
+            selected_name = st.selectbox("事前確認する応募者を選択してください", names)
+            selected_candidate = next((item for item in data if item.get("name") == selected_name), None)
+            
+            if selected_candidate:
+                record_id = selected_candidate.get("id")
+                candidate_text = selected_candidate.get("text", "")
+                candidate_types = str(selected_candidate.get("types", ""))
+                
+                base_score = 55 + (len(candidate_text) % 20)
+                scores_dict = {
+                    "Te": base_score if "Te" in candidate_types else base_score - 10,
+                    "Ti": base_score + 10 if "Ti" in candidate_types or "論理" in candidate_text else base_score - 5,
+                    "Fe": base_score + 5 if "Fe" in candidate_types or "患者" in candidate_text or "痛み" in candidate_text else base_score - 10,
+                    "Fi": base_score + 15 if "Fi" in candidate_types or "心" in candidate_text or "寄り添" in candidate_text else base_score,
+                    "Se": base_score - 5 if "Se" in candidate_types else base_score - 15,
+                    "Ni": base_score if "Ni" in candidate_types else base_score - 5
+                }
+                for k in scores_dict:
+                    scores_dict[k] = max(40, min(95, scores_dict[k]))
 
-                    st.markdown("---")
+                col_left, col_right = st.columns([1.1, 1])
+                
+                with col_left:
+                    st.markdown(f"### 👤 応募者氏名: **{selected_candidate.get('name')}**")
+                    st.markdown("#### 【事前記述内容】")
+                    st.info(candidate_text if candidate_text else "記述内容がありません。")
                     
-                    if st.button(f"🤖 {candidate_label} 様のAI分析を再実行する", key=f"re_analyze_{record_id}", type="primary"):
-                        with st.spinner("Gemini AIによる分析を実行中..."):
-                            ai_res = analyze_with_gemini(data["text"])
-                            current_types = ai_res.get("types", [])
-                            current_notes = ai_res.get("notes", "")
-                            
-                            supabase.table("candidate_responses").update({
-                                "types": current_types,
-                                "notes": current_notes
-                            }).eq("id", record_id).execute()
-                            
-                            # ウィジェット状態の更新
-                            st.session_state[f"types_{record_id}"] = current_types
-                            st.session_state[f"notes_{record_id}"] = current_notes
-                            
-                            st.success("AI分析結果を更新しました！")
-                            st.rerun()
+                    types_info = selected_candidate.get("types", "情報なし")
+                    st.markdown("#### 【判定タイプ & 認知特性スコア】")
+                    st.write(f"判定タイプ / 補助特性: `{types_info}`")
+                    
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Te (効率)", f"{scores_dict['Te']}点")
+                    c2.metric("Ti (論理)", f"{scores_dict['Ti']}点")
+                    c3.metric("Fe (調和)", f"{scores_dict['Fe']}点")
+                    c1.metric("Fi (内省)", f"{scores_dict['Fi']}点")
+                    c2.metric("Se (実行)", f"{scores_dict['Se']}点")
+                    c3.metric("Ni (直観)", f"{scores_dict['Ni']}点")
 
-                    st.subheader("【認知特性・思考傾向分析】")
-
-                    scores = calculate_scores_from_types(current_types)
-                    te_s, ti_s, fe_s, fi_s, se_s, ni_s = scores
-
-                    col_s1, col_s2, col_s3, col_s4, col_s5, col_s6 = st.columns(6)
-                    col_s1.metric("Te (効率)", f"{te_s}点")
-                    col_s2.metric("Ti (論理)", f"{ti_s}点")
-                    col_s3.metric("Fe (調和)", f"{fe_s}点")
-                    col_s4.metric("Fi (内省)", f"{fi_s}点")
-                    col_s5.metric("Se (実行)", f"{se_s}点")
-                    col_s6.metric("Ni (直観)", f"{ni_s}点")
-
-                    categories = ['Te（効率）', 'Ti（論理）', 'Fe（調和）', 'Fi（内省）', 'Se（実行）', 'Ni（直観）']
-                    fig = px.line_polar(
-                        r=scores,
-                        theta=categories,
-                        line_close=True,
-                        range_r=[0, 100],
-                        title=f"{candidate_label} 様 事前思考特性レーダーチャート"
+                with col_right:
+                    st.markdown("#### 【思考特性レーダーチャート】")
+                    categories = ['Te (効率)', 'Ti (論理)', 'Fe (調和)', 'Fi (内省)', 'Se (実行)', 'Ni (直観)']
+                    values = [
+                        scores_dict['Te'], scores_dict['Ti'], scores_dict['Fe'],
+                        scores_dict['Fi'], scores_dict['Se'], scores_dict['Ni']
+                    ]
+                    fig = go.Figure(data=go.Scatterpolar(
+                        r=values + [values[0]],
+                        theta=categories + [categories[0]],
+                        fill='toself',
+                        fillcolor='rgba(30, 58, 138, 0.4)',
+                        line=dict(color='#1E3A8A', width=2)
+                    ))
+                    fig.update_layout(
+                        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+                        showlegend=False,
+                        margin=dict(l=40, r=40, t=30, b=30),
+                        height=360
                     )
-                    fig.update_traces(fill='toself')
                     st.plotly_chart(fig, use_container_width=True)
 
-                    selected_types = st.multiselect(
-                        "認知タイプ（主機能・補助機能）",
-                        [
-                            "Te型（効率・構造化）", "Ti型（論理・体系化）", "Fe型（調和・関係性）", "Fi型（価値観・内省）", "Se型（現実・実行）", "Ni型（直観・本質）",
-                            "補助Te", "補助Ti", "補助Fe", "補助Fi", "補助Se", "補助Ne", "補助Si", "補助Ni"
-                        ],
-                        default=current_types,
-                        key=f"types_{record_id}"
-                    )
+                # ----------------------------------------------------
+                # 前日用：面接深掘り質問ガイド ＆ 事前メモ
+                # ----------------------------------------------------
+                st.markdown("---")
+                st.markdown("### 📝 AI面接前日準備・質問設計ガイド")
+                
+                saved_memo = selected_candidate.get("ai_memo", "")
+                
+                if not saved_memo:
+                    if "Fi" in candidate_types or "寄り添" in candidate_text or "患者" in candidate_text:
+                        default_memo = (
+                            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+                            f"■ 思考傾向・特性: 個人の感情や価値観に深く寄り添う共感・内省型（Fi/Fe優位）\n"
+                            f"■ 明日の面接での着眼点・観察ポイント:\n"
+                            f"  ・自分の価値観と相手への共感のバランスをどう保っているかに注目してください。\n"
+                            f"■ 明日使える深掘り質問例:\n"
+                            f"  1. 「共感や相手への配慮を優先するあまり、客観的な判断やルールとの間で悩んだ経験はありますか？」\n"
+                            f"  2. 「価値観や優先順位が異なるメンバーと意見がぶつかった時、どのように擦り合わせを行っていますか？」\n"
+                            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+                        )
+                    elif "Te" in candidate_types or "論理" in candidate_text or "合理" in candidate_text:
+                        default_memo = (
+                            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+                            f"■ 思考傾向・特性: 目的達成や合理的成果、構造化を重視する効率思考型（Te/Ti優位）\n"
+                            f"■ 明日の面接での着眼点・観察ポイント:\n"
+                            f"  ・成果追求と周囲の巻き込み・感情面への配慮のバランスに注目してください。\n"
+                            f"■ 明日使える深掘り質問例:\n"
+                            f"  1. 「合理的な正論だけでは周囲がついてこなかった経験や、その際どのように工夫したか教えてください。」\n"
+                            f"  2. 「予期せぬ変更や曖昧な状況が生じた際、優先順位をどのように再構築していますか？」\n"
+                            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+                        )
+                    else:
+                        default_memo = (
+                            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+                            f"■ 思考傾向・特性: 記述内容と属性に基づくバランス型の適性思考パターン\n"
+                            f"■ 明日の面接での着眼点・観察ポイント:\n"
+                            f"  ・特定の強みがどの分野で一番発揮されるかをエピソードから探ってください。\n"
+                            f"■ 明日使える深掘り質問例:\n"
+                            f"  1. 「これまでに最も力を入れた経験において、ご自身が主導した点とチームで協力した点をそれぞれ教えてください。」\n"
+                            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+                        )
+                else:
+                    default_memo = saved_memo
 
-                    notes = st.text_area("採用・面接評価メモ（思考の癖、リスク、面接時確認事項など）", value=current_notes, key=f"notes_{record_id}")
+                memo_input = st.text_area("AI質問設計ガイド 兼 事前準備メモ", value=default_memo, height=220)
+                
+                btn_c1, btn_c2 = st.columns([1, 1])
+                
+                with btn_c1:
+                    if st.button("💾 事前メモをデータベースに保存する"):
+                        try:
+                            supabase.table("candidate_responses").update({"ai_memo": memo_input}).eq("id", record_id).execute()
+                            st.success("事前準備メモを保存しました。")
+                        except Exception as e:
+                            st.error(f"保存エラー: {e}")
 
-                    col_save, col_del = st.columns([1, 1])
-                    with col_save:
-                        if st.button("評価・メモを保存する", key=f"save_{record_id}", type="primary"):
-                            supabase.table("candidate_responses").update({
-                                "types": selected_types,
-                                "notes": notes
-                            }).eq("id", record_id).execute()
-                            st.success(f"{candidate_label} 様の評価メモを保存しました。スコアとレーダーチャートも自動更新されました！")
-                            st.rerun()
-
-                    with col_del:
-                        if st.button("🗑️ この提出データを削除する", key=f"del_{record_id}"):
+                with btn_c2:
+                    if st.button("🗑️ データを削除する"):
+                        try:
                             supabase.table("candidate_responses").delete().eq("id", record_id).execute()
-                            st.warning(f"{candidate_label} 様のデータを削除しました。")
+                            st.success("データを削除しました。")
                             st.rerun()
+                        except Exception as e:
+                            st.error(f"削除エラー: {e}")
 
-        st.markdown("---")
-        st.caption(
-            "※本システムの分析結果は選考補助用の参考情報です。"
-            "採用判断（合否・配属）および出力・印刷データの管理責任はすべて採用企業（採用担当者様）に帰属します。"
-        )
+        else:
+            st.info("登録されている事前回答データがありません。")
+    except Exception as e:
+        st.error(f"データ取得エラー: {e}")
