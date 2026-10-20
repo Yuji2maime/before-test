@@ -130,8 +130,8 @@ def calculate_scores(text, types_list):
 # Gemini安全生成関数
 def generate_gemini_report(name, text):
     prompt = f"""
-あなたは採用面接のスペシャリストです。
-以下の応募者の事前アンケート記述内容を分析し、面接官が前日に読み込むための「事前準備レポート」を作成してください。
+あなたは採用面接の専門家です。
+以下の応募者の事前アンケート記述内容を評価・分析し、面接官が前日に確認するための「事前準備レポート」を作成してください。
 
 【応募者氏名】: {name}
 【記述内容】:
@@ -140,10 +140,10 @@ def generate_gemini_report(name, text):
 【出力フォーマット（必ずこの形式で出力してください）】:
 【AI面接事前準備レポート（深掘り質問ガイド）】
 ■ 思考傾向・テキストの評価:
-（入力内容の具体性、論理性、倫理観、回答態度などを分析して記述。公序良俗に反する表現や不適切な内容、就労意欲の著しい欠如が見られる場合は、その旨と選考上の重大な懸念・不採用推奨を明確に記述すること。）
+（回答の具体性、論理性、就労意欲、公序良俗・倫理感の観点から評価。不適切な記述や著しい常識の欠如が見られる場合は、その旨と重大な懸念・選考見送り推奨を明確に述べること。）
 
 ■ 明日の面接での着眼点・観察ポイント:
-（面接官が観察・確認すべきポイントを2〜3点挙げる）
+（面接官が確認すべきポイントを2〜3点記述）
 
 ■ 明日使える深掘り質問例:
 1. （具体的な質問文1）
@@ -151,8 +151,8 @@ def generate_gemini_report(name, text):
 
 ■ 面接事前準備メモ（面接官の事前メモ欄）:
 """
-    # 互換性のあるモデルを順番に試行
-    candidate_models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro']
+    # エンドポイントのモデル名を順次試行
+    candidate_models = ['gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-1.5-flash', 'gemini-1.5-pro']
     last_err = None
     for model_name in candidate_models:
         try:
@@ -308,7 +308,6 @@ else:
                 
                 saved_memo = selected_candidate.get("ai_memo", "")
                 
-                # Gemini API呼び出しによる自動レポート生成
                 if not saved_memo:
                     if gemini_ready and candidate_text.strip():
                         with st.spinner("Gemini APIが記述内容を分析し、事前準備レポートを作成中..."):
