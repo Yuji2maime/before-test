@@ -6,12 +6,12 @@ import plotly.graph_objects as go
 
 # 1. ページ基本設定
 st.set_page_config(
-    page_title="思考・表現力セッション（事前準備）",
-    page_icon="🔹",
+    page_title="Streamlit - 思考・表現力セッション（自分用・事前準備）",
+    page_icon="🔵",
     layout="wide"
 )
 
-# カスタムCSS（ダークモード/ライトモード両対応・ブルー系テーマ）
+# カスタムCSS（落ち着いたブルー系）
 st.markdown("""
 <style>
     .day-banner {
@@ -32,11 +32,11 @@ st.markdown("""
         font-weight: bold;
     }
     .instruction-box {
-        background-color: #f0f4f8;
-        color: #1e293b !important;
-        border-left: 5px solid #1E3A8A;
+        background-color: #F8FAFC;
+        color: #212529 !important;
+        border: 1px solid #E2E8F0;
         padding: 15px;
-        border-radius: 4px;
+        border-radius: 5px;
         margin-bottom: 20px;
         line-height: 1.6;
     }
@@ -47,11 +47,11 @@ st.markdown("""
         font-weight: bold;
     }
     .instruction-box p {
-        color: #1e293b !important;
+        color: #212529 !important;
         margin-bottom: 0;
     }
     div.stButton > button:first-child {
-        background-color: #2563EB;
+        background-color: #1E3A8A;
         color: white !important;
         border-radius: 6px;
         border: none;
@@ -59,14 +59,14 @@ st.markdown("""
         padding: 8px 16px;
     }
     div.stButton > button:first-child:hover {
-        background-color: #1E3A8A;
+        background-color: #1d4ed8;
         color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ヘッダーバナー
-st.markdown('<div class="day-banner">🔹 思考・表現力セッション（事前準備用）</div>', unsafe_allow_html=True)
+st.markdown('<div class="day-banner">◆ 思考・表現力セッション（自分用・事前準備）</div>', unsafe_allow_html=True)
 
 # Supabase初期化
 @st.cache_resource
@@ -110,7 +110,11 @@ def analyze_text_simple(text):
 
 def calculate_scores(text, types_list):
     types_str = " ".join(types_list)
-    base = 55 + (len(text) % 15)
+    bad_keywords = ["セックス", "オナニー", "ブルマー", "スケベ", "暴れ", "死ね", "殺す", "風俗"]
+    if any(k in text for k in bad_keywords) or len(text) < 15:
+        base = 25
+    else:
+        base = 45 + (len(text) % 25)
     
     scores = {
         "Te": base + 15 if "Te" in types_str or any(w in text for w in ["効率", "目標", "計画"]) else base - 10,
@@ -124,85 +128,99 @@ def calculate_scores(text, types_list):
     }
     
     for k in scores:
-        scores[k] = max(35, min(95, scores[k]))
+        scores[k] = max(10, min(95, scores[k]))
     return scores
 
-# Gemini安全生成関数（利用可能モデル自動検索機能付き）
-def generate_gemini_report(name, text):
-    prompt = f"""あなたは辛口で極めて優れた洞察力を持つプロの採用コンサルタントです。
-以下の応募者の自己申告テキストを分析し、面接官が鋭く突っ込むべき「面接事前準備レポート」を【必ずすべて日本語】で作成してください。
+# Gemini安全生成関数（完全日本語・長所短所混在・シビアかつ深い掘り下げ）
+def generate_gemini_report_day(name, text):
+    prompt = f"""以下の応募者の事前アンケート記述内容を分析し、面接官向けの詳細な事前準備レポートをすべて日本語で作成してください。英語やシステム指示の混入は一切禁止します。
 
-【厳守事項】
-・表面的な要約や一般的なお褒めの言葉（甘口な評価）は一切禁止です。
-・テキストの表現、論理展開、価値観の偏り、抽象的すぎる記述、自己矛盾などから読み取れる「リスク・懸念点・問題意識」を厳しく客観的に指摘してください。
-・誰にでも当てはまるような画一的な文章は避け、この応募者の入力内容に特化したシビアで具体的な分析を行ってください。
+【応募者氏名】: {name}
+【記述内容】:
+"{text}"
 
-■ 応募者氏名: {name}
-■ 記述内容: {text}
+以下の見出し構成に従い、長所と短所を織り交ぜてシビアかつ深く掘り下げた分析を行ってください。
 
-以下の見出しに沿って、必ずすべて日本語で記述してください。
+【AI面接事前準備レポート（深掘り質問ガイド）】
+■ 思考傾向・テキストの評価（長所と短所分析）:
+・長所・評価できる点: （記述から読み取れる意欲や強み）
+・短所・リスク・懸念点: （具体性の欠如や懸念されるリスク）
 
-【AI面接前日準備・質問設計ガイド】
-■ 思考傾向・テキストの評価（強みだけでなく、思考の偏り・自己中心的な視点・論理的矛盾・懸念される人物像をシビアに分析）:
-■ 明日の面接での着眼点・観察ポイント（面接官が警戒すべき行動パターンや、見極めるべき「本音と建前」のポイント）:
-■ 明日使える深掘り質問例（応募者の懸念点・言い逃れを検証するための鋭い深掘り質問2〜3選）:
-■ 面接事前準備メモ（面接官の事前メモ欄・選考上のリスク・採用時の注意点）:
-"""
+■ 明日の面接での着眼点・観察ポイント:
+（面接官が注目すべき観察点）
+
+■ 明日使える深掘り質問例:
+1. （本質や事実を確認するための質問）
+2. （懸念点や矛盾を突くための厳格な質問）
+
+■ 面接事前準備メモ（面接官の事前メモ欄）:
+（選考上の総合的な警戒レベルや申し送り事項）"""
+
     try:
-        # 1. アカウントで利用可能なモデル一覧を取得
         available_models = []
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 available_models.append(m.name)
         
-        # 2. 利用可能モデルで生成を試行
         for model_name in available_models:
             try:
                 model = genai.GenerativeModel(model_name)
-                res = model.generate_content(prompt)
+                res = model.generate_content(prompt, generation_config={"temperature": 0.1})
                 if res and hasattr(res, 'text') and res.text:
+                    if any(eng in res.text for eng in ["Applicant", "Goal", "Constraints", "Role:", "Description:"]):
+                        continue
                     return res.text
             except Exception:
                 continue
     except Exception:
         pass
 
-    # 3. 万が一Gemini APIが完全に利用できない場合の安全ルールエンジン（フォールバック）
+    # フォールバックエンジン（完全日本語）
     bad_keywords = ["セックス", "オナニー", "ブルマー", "スケベ", "暴れ", "死ね", "殺す", "風俗"]
     if any(k in text for k in bad_keywords):
         return (
-            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
-            f"■ 思考傾向・テキストの評価:\n"
-            f"  【🚨 重大警告・不不採用推奨】公序良俗に反する表現および就労目的から著しく逸脱した記述が含まれています。\n"
-            f"  組織の安全衛生およびコンプライアンスの観点から、選考見送り（不採用）を強く推奨いたします。\n"
-            f"■ 明日の面接での着眼点・観察ポイント:\n"
-            f"  ・社会的適合性および就労意欲の根幹に著しい欠如が見られます。\n"
-            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            "■ 思考傾向・テキストの評価（長所と短所分析）:\n"
+            "・長所・評価できる点: なし\n"
+            "・短所・リスク・懸念点: 【重大な不採用推奨】公序良俗に反する表現および就労目的から著しく逸脱した記述が含まれています。\n"
+            "■ 明日の面接での着眼点・観察ポイント:\n"
+            "・組織のコンプライアンス維持の観点から選考見送りを強く推奨します。\n"
+            "■ 明日使える深掘り質問例:\n"
+            "1. 「ご自身の記述された内容について、社会的マナーや倫理観の観点からどのように説明されますか？」\n"
+            "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "・コンプライアンス上の重大なリスクがあるため採用不可。"
         )
     elif len(text) < 30:
         return (
-            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
-            f"■ 思考傾向・テキストの評価:\n"
-            f"  記述内容が非常に簡素（短文）であり、自己の考えや思考プロセスの具体性が不足しています。\n"
-            f"■ 明日の面接での着眼点・観察ポイント:\n"
-            f"  ・口頭での説明能力や具体例を交えた回答ができるかを確認してください。\n"
-            f"■ 明日使える深掘り質問例:\n"
-            f"  1. 「記述いただいた内容について、具体的な実体験やエピソードを詳しく教えていただけますか？」\n"
-            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            "■ 思考傾向・テキストの評価（長所と短所分析）:\n"
+            "・長所・評価できる点: 相手に配慮しようとする意向が見られる点。\n"
+            "・短所・リスク・懸念点: 記述が極めて短く抽象的であり、具体的にどのような行動をとるのか根拠が欠如している点。口先だけの理想論に終わるリスクがある。\n"
+            "■ 明日の面接での着眼点・観察ポイント:\n"
+            "・「寄り添う」という言葉の裏にある具体的行動力や精神的耐性を口頭で見極める。\n"
+            "■ 明日使える深掘り質問例:\n"
+            "1. 「『患者に寄り添う』とは、具体的にどのような行動を指すと考えていますか？過去の実践例を教えてください。」\n"
+            "2. 「自分の親身な対応が相手に受け入れられなかったり、理不尽に拒絶された場合、どのように対応しますか？」\n"
+            "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "・表層的な表現に終始しているため、面接にて実践力と論理性を厳しく追及すること。"
         )
     else:
         return (
-            f"【AI面接事前準備レポート（深掘り質問ガイド）】\n"
-            f"■ 思考傾向・テキストの評価: 記述内容に基づく標準分析\n"
-            f"■ 明日の面接での着眼点・観察ポイント:\n"
-            f"  ・記述された考え方の再現性や一貫性を口頭の質問で探ってください。\n"
-            f"■ 明日使える深掘り質問例:\n"
-            f"  1. 「これまでで最も力を入れた経験と、そこで大切にされていた考え方を教えてください。」\n"
-            f"■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            "■ 思考傾向・テキストの評価（長所と短所分析）:\n"
+            "・長所・評価できる点: 他者への共感性や対人配慮の意向が強く伺える点。\n"
+            "・短所・リスク・懸念点: 感情面への配慮に偏るあまり、客観的判断や業務効率を重視すべき場面での判断力に課題が残る点。\n"
+            "■ 明日の面接での着眼点・観察ポイント:\n"
+            "・共感性とプロ意識（毅然とした対応）のバランスが取れているかを確認する。\n"
+            "■ 明日使える深掘り質問例:\n"
+            "1. 「相手の感情に共感することと、プロとして冷静に客観的判断を下すことのバランスをどのように取りますか？」\n"
+            "2. 「ご自身の価値観と組織のルールが対立した際、どちらを優先して行動しますか？」\n"
+            "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "・面接にて客観的思考力とプレッシャーへの耐性を厳しく確認すること。"
         )
 
 # ----------------------------------------------------
-# サイドバー：メニュー、管理者ログイン/ログアウト、免責事項
+# サイドバー：メニュー、管理者ログイン（パスワード：7777）、免責事項
 # ----------------------------------------------------
 st.sidebar.title("📌 メニュー・設定")
 
@@ -210,7 +228,7 @@ if not st.session_state.is_admin:
     st.sidebar.subheader("🔒 管理者ログイン")
     password_input = st.sidebar.text_input("パスワードを入力", type="password")
     if st.sidebar.button("ログイン"):
-        if password_input == "7777":
+        if password_input == "7777":  # 自分用パスワード
             st.session_state.is_admin = True
             st.rerun()
         else:
@@ -227,26 +245,25 @@ st.sidebar.info("""
 - **判定結果の位置付け**
   本システムの思考性・認知特性分析は、応募者の自己申告テキストに基づく事前傾向分析であり、人物像や能力を確定するものではありません。
 - **面接準備の補助ツール**
-  本レポートは明日の面接に向けた事前読み込み・質問設計の参考材料です。**最終的な選考判定および合否決定は、面接官ご自身の責任において行ってください。**
+  本レポートは明日の面接に向けた事前読み込み・質問設計の参考材料です。**最終的な選考判定および合否決定、不確定要素の責任は当組織および面接官に帰属します。**
 - **個人情報の管理・禁止事項**
   採用選考以外の目的での使用、および第三者への無断漏洩・共有は厳禁です。
 """)
 
 # ----------------------------------------------------
-# A. 応募者入力画面（前日提出用）
+# A. 応募者入力画面（未ログイン時）
 # ----------------------------------------------------
 if not st.session_state.is_admin:
     st.markdown('<h1 class="day-title">事前アンケート入力フォーム</h1>', unsafe_allow_html=True)
     
     st.markdown("""
     <div class="instruction-box">
-        <h4>【事前提出のご案内】</h4>
-        <p>本アンケートは、明日のセッション・面接をより実りあるものにするため、事前に皆様の日常的なお考えや仕事観をお伺いするものです。<br>
-        正解・不正解はございませんので、リラックスしてご自身の率直なお考えをご回答ください。</p>
+        <h4 style="margin-top: 0; color: #1E3A8A;">【事前提出のご案内】</h4>
+        <p style="margin-bottom: 0;">本アンケートは、明日のセッション・面接をより実りあるものにするため、事前に皆様の日常的なお考えや仕事観をお伺いするものです。正解・不正解はございませんので、リラックスしてご自身の率直なお考えをご回答ください。</p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.form(key="candidate_form_prev"):
+    with st.form(key="candidate_form_day"):
         applicant_name = st.text_input("お名前（氏名）", placeholder="例：山田 太郎")
         applicant_text = st.text_area("思考・表現力に関する記述", height=150, placeholder="ご自身の考えや価値観、これまでの経験で大切にしてきたこと等を自由にご記入ください。")
         
@@ -263,18 +280,17 @@ if not st.session_state.is_admin:
                     "name": applicant_name.strip(),
                     "text": applicant_text.strip(),
                     "types": types_val,
-                    "app_type": "prev"
+                    "app_type": "day"
                 }
                 
                 supabase.table("candidate_responses").insert(new_data).execute()
                 
-                st.success("事前アンケートの送信が完了いたしました。ご協力ありがとうございました！")
-                st.info("※入力内容は正常に送信されました。明日のセッションをどうぞよろしくお願いいたします。")
+                st.success("事前回答を受け付けました。ご協力ありがとうございました。")
             except Exception as e:
                 st.error(f"送信時にエラーが発生しました: {e}")
 
 # ----------------------------------------------------
-# B. 管理者画面（事前準備・質問ガイド用）
+# B. 管理者画面（ログイン時：事前準備・面接深掘りガイド）
 # ----------------------------------------------------
 else:
     st.markdown('<h1 class="day-title">【管理者用】事前準備・面接深掘りガイド</h1>', unsafe_allow_html=True)
@@ -336,20 +352,26 @@ else:
                     st.plotly_chart(fig, use_container_width=True)
 
                 # ----------------------------------------------------
-                # 前日用：Gemini APIによる動的分析＆面接質問ガイド
+                # AI面接前日準備・質問設計ガイド
                 # ----------------------------------------------------
                 st.markdown("---")
                 st.markdown("### 📝 AI面接前日準備・質問設計ガイド")
                 
                 saved_memo = selected_candidate.get("ai_memo", "")
                 
-                if not saved_memo:
-                    with st.spinner("記述内容を分析し、事前準備レポートを作成中..."):
-                        default_memo = generate_gemini_report(selected_candidate.get('name'), candidate_text.strip())
+                is_invalid_english = any(eng in str(saved_memo) for eng in ["Applicant", "Goal", "Constraints", "Role:", "Description:", "Content:"])
+                
+                if not saved_memo or is_invalid_english:
+                    with st.spinner("記述内容を分析し、完全な日本語レポートを作成中..."):
+                        default_memo = generate_gemini_report_day(selected_candidate.get('name'), candidate_text.strip())
+                        try:
+                            supabase.table("candidate_responses").update({"ai_memo": default_memo}).eq("id", record_id).execute()
+                        except Exception:
+                            pass
                 else:
                     default_memo = saved_memo
 
-                memo_input = st.text_area("AI質問設計ガイド 兼 事前準備メモ", value=default_memo, height=260)
+                memo_input = st.text_area("AI面接事前準備メモ（面接官の事前メモ欄）", value=default_memo, height=260)
                 
                 btn_c1, btn_c2 = st.columns([1, 1])
                 
@@ -357,7 +379,7 @@ else:
                     if st.button("💾 事前メモをデータベースに保存する"):
                         try:
                             supabase.table("candidate_responses").update({"ai_memo": memo_input}).eq("id", record_id).execute()
-                            st.success("事前準備メモを保存しました。")
+                            st.success("事前メモを保存しました。")
                         except Exception as e:
                             st.error(f"保存エラー: {e}")
 
@@ -371,6 +393,6 @@ else:
                             st.error(f"削除エラー: {e}")
 
         else:
-            st.info("登録されている事前回答データがありません。")
+            st.info("登録されている応募者データがありません。")
     except Exception as e:
         st.error(f"データ取得エラー: {e}")
