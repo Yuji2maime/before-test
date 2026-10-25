@@ -4,14 +4,14 @@ import google.generativeai as genai
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. ページ基本設定
+# 1. ページ基本設定（自分用・事前準備）
 st.set_page_config(
     page_title="思考・表現力セッション（自分用・事前準備）",
     page_icon="🔵",
     layout="wide"
 )
 
-# カスタムCSS
+# カスタムCSS（統一されたブルー基調）
 st.markdown("""
 <style>
     .day-banner {
@@ -32,11 +32,11 @@ st.markdown("""
         font-weight: bold;
     }
     .instruction-box {
-        background-color: #F8FAFC;
+        background-color: #f8f9fa;
         color: #212529 !important;
-        border: 1px solid #E2E8F0;
+        border-left: 5px solid #1E3A8A;
         padding: 15px;
-        border-radius: 5px;
+        border-radius: 4px;
         margin-bottom: 20px;
         line-height: 1.6;
     }
@@ -65,7 +65,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="day-banner">◆ 思考・表現力セッション（自分用・事前準備）</div>', unsafe_allow_html=True)
+st.markdown('<div class="day-banner">🔵 思考・表現力セッション（自分用・事前準備）</div>', unsafe_allow_html=True)
 
 # Supabase初期化
 @st.cache_resource
@@ -91,7 +91,7 @@ if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 
 # ----------------------------------------------------
-# 補助関数（文字数・記述量連動のシンプル設計）
+# 補助関数（全アプリ共通のシンプル・頑健ロジック）
 # ----------------------------------------------------
 def analyze_text_simple(text):
     judging = "Te型（効率・構造化）" if any(w in text for w in ["効率", "計画", "目標", "構造", "成果", "システム"]) else \
@@ -108,10 +108,11 @@ def analyze_text_simple(text):
 
 def calculate_scores(text, types_list):
     types_str = " ".join(types_list)
+    risk_keywords = ["違反", "不正", "力こそが正義", "馬鹿", "軍人", "SEX", "オナニー", "ブルマー", "いびっ"]
+    has_risk = any(k in text for k in risk_keywords)
     
-    # 文字数が極端に少ない場合や不十分な内容は一律で低スコア（ベース25点）に固定
-    if len(text) < 30:
-        base = 25
+    if len(text) < 30 or has_risk:
+        base = 20
     else:
         base = 45 + (len(text) % 25)
     
@@ -126,43 +127,52 @@ def calculate_scores(text, types_list):
         "Ni": base + 10 if "Ni" in types_str or any(w in text for w in ["洞察", "未来", "ビジョン"]) else base - 10,
     }
     
-    # 短文の場合はスコア上限を35点に抑え、レポートと数値を完全連動させる
-    if len(text) < 30:
+    if len(text) < 30 or has_risk:
         for k in scores:
-            scores[k] = min(scores[k], 35)
+            scores[k] = min(scores[k], 25)
             
     for k in scores:
         scores[k] = max(10, min(95, scores[k]))
     return scores
 
-# 自分用（前日用）レポート生成テンプレート（文字数・記述妥当性ベース）
 def get_default_before_report(text):
-    # 記述が短い場合（モラルハザード、投げやりな記述、不誠実な回答を網羅的に捉える）
-    if len(text) < 30:
+    risk_keywords = ["違反", "不正", "力こそが正義", "馬鹿", "軍人", "SEX", "オナニー", "ブルマー", "いびっ"]
+    if any(k in text for k in risk_keywords):
         return (
             "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
             "■ 思考傾向・テキストの評価（長所と短所分析）:\n"
             "・長所・評価できる点: 特になし\n"
-            "・短所・リスク・懸念点: 【🚨 記述量・論理的説明の不足（慎重評価）】記述量が極めて少なく、社会人としての説明責任や論理的思考、あるいは回答に対する誠実さに大きな懸念があります。規範意識や意欲の面で慎重な見極めが必要です。\n"
+            "・短所・リスク・懸念点: 【🚨 重大コンプライアンスリスク】組織の規範遵守を軽視する傾向が示されており、面接において厳格な確認が必要です。\n"
             "■ 明日の面接での着眼点・観察ポイント:\n"
-            "・コミュニケーションの基本姿勢、誠実さ、および組織のルールに対する基本的態度を厳格に見極める。\n"
+            "・社会的規範意識、倫理観、および組織のルールに対する基本的態度を厳格に見極める。\n"
             "■ 明日使える深掘り質問例:\n"
-            "1. 「ご自身の考えやこれまでの経験について、もう少し具体的に面接官にご説明いただけますか？」\n"
-            "2. 「組織のルールやチームでの協調性に対して、普段どのような意識を持って取り組んでいらっしゃいますか？」\n"
+            "1. 「組織のルールやコンプライアンスに関するお考えについて具体的にご説明いただけますか？」\n"
             "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
-            "・記述内容が極めて乏しいため、面接にて人間性、誠実さおよび実務遂行能力を厳しく確認すること。"
+            "・コンプライアンス上の重大なリスクがあるため面接にて厳しく追及すること。"
+        )
+    elif len(text) < 30:
+        return (
+            "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
+            "■ 思考傾向・テキストの評価（長所と短所分析）:\n"
+            "・長所・評価できる点: 簡潔に意向を示そうとする姿勢。\n"
+            "・短所・リスク・懸念点: 【🚨 記述量・論理的説明の不足（慎重評価）】記述量が極めて少なく、具体的な行動根拠や論理性が欠如している点。表面的な言葉にとどまるリスク。\n"
+            "■ 明日の面接での着眼点・観察ポイント:\n"
+            "・抽象的な表現の裏にある具体的な行動実績と論理的思考力を面接口頭で見極める。\n"
+            "■ 明日使える深掘り質問例:\n"
+            "1. 「ご自身の主張を裏付ける具体的なエピソードや、過去に直面した課題とその解決策を教えてください。」\n"
+            "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
+            "・表層的な表現に終始しているため、面接にて実践力と論理性を厳しく追及すること。"
         )
     else:
         return (
             "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
             "■ 思考傾向・テキストの評価（長所と短所分析）:\n"
             "・長所・評価できる点: 自身の考えや価値観を一定の言葉で表現できている点。\n"
-            "・短所・リスク・懸念点: 理想論や主観に偏る傾向が見られる場合があり、実際の業務における客観的判断力やプレッシャー耐性の検証が必要な点。\n"
+            "・短所・リスク・懸念点: 理想論や主観に偏る傾向が見られる場合があり、実際の業務における客観的判断力の検証が必要な点。\n"
             "■ 明日の面接での着眼点・観察ポイント:\n"
             "・主観的な意欲だけでなく、客観的な状況判断力と組織への適応バランスが取れているかを確認する。\n"
             "■ 明日使える深掘り質問例:\n"
             "1. 「ご自身の意見や価値観と、組織の方針やチームのルールが異なる場合、どのように折り合いをつけて行動しますか？」\n"
-            "2. 「業務上の予期せぬトラブルやプレッシャーに直面した際、どのような手順で冷静さを保ち解決を図りますか？」\n"
             "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
             "・面接にて客観的思考力とプレッシャーへの耐性、ガバナンス意識を重点的に確認すること。"
         )
@@ -176,7 +186,7 @@ if not st.session_state.is_admin:
     st.sidebar.subheader("🔒 管理者ログイン")
     password_input = st.sidebar.text_input("パスワードを入力", type="password")
     if st.sidebar.button("ログイン"):
-        if password_input == "7777":  # 自分用パスワード
+        if password_input == "7777":
             st.session_state.is_admin = True
             st.rerun()
         else:
@@ -191,11 +201,9 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("⚠️ 注意事項・禁止事項・免責事項")
 st.sidebar.info("""
 - **判定結果の位置付け**
-  本システムの思考性・認知特性分析は、応募者の自己申告テキストに基づく事前傾向分析であり、人物像や能力を確定するものではありません。
+  本システムの分析は事前傾向分析であり、人物像を確定するものではありません。
 - **面接準備の補助ツール**
-  本レポートは明日の面接に向けた事前読み込み・質問設計の参考材料です。**最終的な選考判定および合否決定、不確定要素の責任は当組織および面接官に帰属します。**
-- **個人情報の管理・禁止事項**
-  採用選考以外の目的での使用、および第三者への無断漏洩・共有は厳禁です。
+  最終的な選考判定および合否決定の責任は選考責任者に帰属します。
 """)
 
 # ----------------------------------------------------
@@ -211,10 +219,9 @@ if not st.session_state.is_admin:
     </div>
     """, unsafe_allow_html=True)
 
-    with st.form(key="candidate_form_day"):
+    with st.form(key="candidate_form_before"):
         applicant_name = st.text_input("お名前（氏名）", placeholder="例：山田 太郎")
         applicant_text = st.text_area("思考・表現力に関する記述", height=150, placeholder="ご自身の考えや価値観、これまでの経験で大切にしてきたこと等を自由にご記入ください。")
-        
         submit_button = st.form_submit_button(label="事前回答を提出する")
 
     if submit_button:
@@ -296,9 +303,6 @@ else:
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-                # ----------------------------------------------------
-                # レポート表示（ai_memo_before カラムを使用）
-                # ----------------------------------------------------
                 st.markdown("---")
                 st.markdown("### 📝 AI面接前日準備・質問設計ガイド")
                 
