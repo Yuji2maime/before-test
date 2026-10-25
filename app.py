@@ -131,15 +131,19 @@ def calculate_scores(text, types_list):
         scores[k] = max(10, min(95, scores[k]))
     return scores
 
-# Gemini安全生成関数（完全日本語・長所短所混在・シビアかつ深い掘り下げ）
-def generate_gemini_report_day(name, text):
-    prompt = f"""以下の応募者の事前アンケート記述内容を分析し、面接官向けの詳細な事前準備レポートをすべて日本語で作成してください。英語やシステム指示の混入は一切禁止します。
+# Gemini安全生成関数（前日用：面接質問設計＆深掘りガイド）
+def generate_gemini_report_before(name, text):
+    prompt = f"""【最重要命令】
+出力テキストには英語を一切使用せず、すべて日本語のみで出力してください。
+
+あなたは採用面接の厳格な専門家です。
+以下の応募者の事前アンケート記述内容を分析し、明日の面接において面接官が「何をどのように深掘りして聴くべきか」に特化した事前準備ガイドをすべて日本語で作成してください。
 
 【応募者氏名】: {name}
 【記述内容】:
 "{text}"
 
-以下の見出し構成に従い、長所と短所を織り交ぜてシビアかつ深く掘り下げた分析を行ってください。
+以下の見出し構成に従い、長所と短所を織り交ぜてシビアかつ深く掘り下げた面接質問設計を行ってください。
 
 【AI面接事前準備レポート（深掘り質問ガイド）】
 ■ 思考傾向・テキストの評価（長所と短所分析）:
@@ -150,11 +154,11 @@ def generate_gemini_report_day(name, text):
 （面接官が注目すべき観察点）
 
 ■ 明日使える深掘り質問例:
-1. （本質や事実を確認するための質問）
-2. （懸念点や矛盾を突くための厳格な質問）
+1. （本質や事実を確認するための面接での質問）
+2. （懸念点や矛盾を突くための厳格な面接での質問）
 
 ■ 面接事前準備メモ（面接官の事前メモ欄）:
-（選考上の総合的な警戒レベルや申し送り事項）"""
+（面接時に注意すべき申し送り事項）"""
 
     try:
         available_models = []
@@ -175,7 +179,7 @@ def generate_gemini_report_day(name, text):
     except Exception:
         pass
 
-    # フォールバックエンジン（完全日本語）
+    # フォールバックエンジン（前日用・面接質問特化）
     bad_keywords = ["セックス", "オナニー", "ブルマー", "スケベ", "暴れ", "死ね", "殺す", "風俗"]
     if any(k in text for k in bad_keywords):
         return (
@@ -184,11 +188,11 @@ def generate_gemini_report_day(name, text):
             "・長所・評価できる点: なし\n"
             "・短所・リスク・懸念点: 【重大な不採用推奨】公序良俗に反する表現および就労目的から著しく逸脱した記述が含まれています。\n"
             "■ 明日の面接での着眼点・観察ポイント:\n"
-            "・組織のコンプライアンス維持の観点から選考見送りを強く推奨します。\n"
+            "・組織のコンプライアンス維持の観点から面接での厳格な確認を推奨します。\n"
             "■ 明日使える深掘り質問例:\n"
-            "1. 「ご自身の記述された内容について、社会的マナーや倫理観の観点からどのように説明されますか？」\n"
+            "1. 「ご自身の記述された内容について、社会的マナーや倫理観の観点から面接官にどのように説明されますか？」\n"
             "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
-            "・コンプライアンス上の重大なリスクがあるため採用不可。"
+            "・コンプライアンス上の重大なリスクがあるため面接にて厳しく追及すること。"
         )
     elif len(text) < 30:
         return (
@@ -197,10 +201,10 @@ def generate_gemini_report_day(name, text):
             "・長所・評価できる点: 相手に配慮しようとする意向が見られる点。\n"
             "・短所・リスク・懸念点: 記述が極めて短く抽象的であり、具体的にどのような行動をとるのか根拠が欠如している点。口先だけの理想論に終わるリスクがある。\n"
             "■ 明日の面接での着眼点・観察ポイント:\n"
-            "・「寄り添う」という言葉の裏にある具体的行動力や精神的耐性を口頭で見極める。\n"
+            "・「寄り添う」という言葉の裏にある具体的行動力や精神的耐性を面接口頭で見極める。\n"
             "■ 明日使える深掘り質問例:\n"
-            "1. 「『患者に寄り添う』とは、具体的にどのような行動を指すと考えていますか？過去の実践例を教えてください。」\n"
-            "2. 「自分の親身な対応が相手に受け入れられなかったり、理不尽に拒絶された場合、どのように対応しますか？」\n"
+            "1. 「面接でお伺いしますが、『患者に寄り添う』とは、具体的にどのような行動を指すと考えていますか？過去の実践例を教えてください。」\n"
+            "2. 「自分の親身な対応が相手に受け入れられなかったり、理不尽に拒絶された場合、面接官の前でどう対応するか教えてください。」\n"
             "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
             "・表層的な表現に終始しているため、面接にて実践力と論理性を厳しく追及すること。"
         )
@@ -211,10 +215,10 @@ def generate_gemini_report_day(name, text):
             "・長所・評価できる点: 他者への共感性や対人配慮の意向が強く伺える点。\n"
             "・短所・リスク・懸念点: 感情面への配慮に偏るあまり、客観的判断や業務効率を重視すべき場面での判断力に課題が残る点。\n"
             "■ 明日の面接での着眼点・観察ポイント:\n"
-            "・共感性とプロ意識（毅然とした対応）のバランスが取れているかを確認する。\n"
+            "・面接において共感性とプロ意識（毅然とした対応）のバランスが取れているかを確認する。\n"
             "■ 明日使える深掘り質問例:\n"
-            "1. 「相手の感情に共感することと、プロとして冷静に客観的判断を下すことのバランスをどのように取りますか？」\n"
-            "2. 「ご自身の価値観と組織のルールが対立した際、どちらを優先して行動しますか？」\n"
+            "1. 「面接官の質問です。相手の感情に共感することと、プロとして冷静に客観的判断を下すことのバランスをどのように取りますか？」\n"
+            "2. 「ご自身の価値観と組織のルールが対立した際、面接官の前でどちらを優先して行動するか説明してください。」\n"
             "■ 面接事前準備メモ（面接官の事前メモ欄）:\n"
             "・面接にて客観的思考力とプレッシャーへの耐性を厳しく確認すること。"
         )
@@ -228,7 +232,7 @@ if not st.session_state.is_admin:
     st.sidebar.subheader("🔒 管理者ログイン")
     password_input = st.sidebar.text_input("パスワードを入力", type="password")
     if st.sidebar.button("ログイン"):
-        if password_input == "7777":  # 自分用パスワード
+        if password_input == "7777":
             st.session_state.is_admin = True
             st.rerun()
         else:
@@ -352,20 +356,21 @@ else:
                     st.plotly_chart(fig, use_container_width=True)
 
                 # ----------------------------------------------------
-                # AI面接前日準備・質問設計ガイド
+                # 前日用：専用カラム ai_memo_before を使用して完全に分離
                 # ----------------------------------------------------
                 st.markdown("---")
                 st.markdown("### 📝 AI面接前日準備・質問設計ガイド")
                 
-                saved_memo = selected_candidate.get("ai_memo", "")
+                saved_memo = selected_candidate.get("ai_memo_before", "")
                 
+                is_day_version = "選考評価＆配属活用レポート" in str(saved_memo) or "採否判定" in str(saved_memo)
                 is_invalid_english = any(eng in str(saved_memo) for eng in ["Applicant", "Goal", "Constraints", "Role:", "Description:", "Content:"])
                 
-                if not saved_memo or is_invalid_english:
-                    with st.spinner("記述内容を分析し、完全な日本語レポートを作成中..."):
-                        default_memo = generate_gemini_report_day(selected_candidate.get('name'), candidate_text.strip())
+                if not saved_memo or is_day_version or is_invalid_english:
+                    with st.spinner("面接事前準備レポート（質問設計ガイド）を作成中..."):
+                        default_memo = generate_gemini_report_before(selected_candidate.get('name'), candidate_text.strip())
                         try:
-                            supabase.table("candidate_responses").update({"ai_memo": default_memo}).eq("id", record_id).execute()
+                            supabase.table("candidate_responses").update({"ai_memo_before": default_memo}).eq("id", record_id).execute()
                         except Exception:
                             pass
                 else:
@@ -378,7 +383,7 @@ else:
                 with btn_c1:
                     if st.button("💾 事前メモをデータベースに保存する"):
                         try:
-                            supabase.table("candidate_responses").update({"ai_memo": memo_input}).eq("id", record_id).execute()
+                            supabase.table("candidate_responses").update({"ai_memo_before": memo_input}).eq("id", record_id).execute()
                             st.success("事前メモを保存しました。")
                         except Exception as e:
                             st.error(f"保存エラー: {e}")
