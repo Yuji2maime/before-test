@@ -4,9 +4,9 @@ import google.generativeai as genai
 import pandas as pd
 import plotly.graph_objects as go
 page_icon="🔵",
-# 1. ページ基本設定（労働調査会用・事前準備）
+# 1. ページ基本設定（自分用・事前準備）
 st.set_page_config(
-    page_title="思考・表現力セッション（労働調査会用・事前準備）",
+    page_title="思考・表現力セッション（自分用・事前準備）",
     
     layout="wide"
 )
@@ -190,7 +190,7 @@ if not st.session_state.is_admin:
     st.sidebar.subheader("🔒 管理者ログイン")
     password_input = st.sidebar.text_input("パスワードを入力", type="password")
     if st.sidebar.button("ログイン"):
-        if password_input == "8888":  # 労働調査会用パスワード
+        if password_input == "7777":  # 自分用パスワード
             st.session_state.is_admin = True
             st.rerun()
         else:
