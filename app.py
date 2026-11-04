@@ -257,7 +257,7 @@ else:
                     import json
             
                     # 判定タイプを安全にきれいな日本語文字列に変換して表示
-                    if isinstance(candidate_types, (list, tuple)):
+    if isinstance(candidate_types, (list, tuple)):
         types_display = ", ".join(str(t) for t in candidate_types)
     elif isinstance(candidate_types, dict):
         types_display = ", ".join(f"{k}: {v}" for k, v in candidate_types.items())
