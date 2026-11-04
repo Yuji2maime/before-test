@@ -268,17 +268,18 @@ else:
                     st.markdown("#### 【事前記述内容】")
                     st.info(candidate_text if candidate_text else "記述内容がありません。")
                     
-                    st.markdown("#### 【判定タイプ & 認知特性スコア】")
-                    import json
-# 判定タイプを安全にきれいな日本語文字列に変換して表示
-if isinstance(candidate_types, (list, tuple)):
-    types_display = ", ".join(str(t) for t in candidate_types)
-elif isinstance(candidate_types, dict):
-    types_display = ", ".join(f"{k}: {v}" for k, v in candidate_types.items())
-else:
-    types_display = str(candidate_types)
+                    st.markdown(f"### 【判定タイプ ＆ 認知特性スコア】")
+        import json
+        
+        # 判定タイプを安全にきれいな日本語文字列に変換して表示
+        if isinstance(candidate_types, (list, tuple)):
+            types_display = ", ".join(str(t) for t in candidate_types)
+        elif isinstance(candidate_types, dict):
+            types_display = ", ".join(f"{k}: {v}" for k, v in candidate_types.items())
+        else:
+            types_display = str(candidate_types)
 
-st.write(f"判定タイプ / 認知特性：{types_display}")
+        st.write(f"判定タイプ / 認知特性：{types_display}")
                     
                     c1, c2, c3, c4 = st.columns(4)
                     c1.metric("Te (効率)", f"{scores_dict['Te']}点")
