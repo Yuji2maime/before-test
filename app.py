@@ -271,7 +271,7 @@ else:
                     st.info(candidate_text if candidate_text else "記述内容がありません。")
                     
                     st.markdown("#### 【判定タイプ & 認知特性スコア】")
-                    st.write(f"判定タイプ / 認知特性: `{candidate_types}`")
+                    st.write(f"判定タイプ / 認知特性：{', '.join(candidate_types) if isinstance(candidate_types, list) else candidate_types}")
                     
                     c1, c2, c3, c4 = st.columns(4)
                     c1.metric("Te (効率)", f"{scores_dict['Te']}点")
