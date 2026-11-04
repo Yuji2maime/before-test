@@ -11,11 +11,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# カスタムCSS
+# カスタムCSS（統一されたブルー基調）
 st.markdown("""
 <style>
     .day-banner {
-        background-color: #0F766E;
+        background-color: #1E3A8A;
         color: #FFFFFF !important;
         padding: 10px 18px;
         border-radius: 6px;
@@ -24,8 +24,8 @@ st.markdown("""
         margin-bottom: 20px;
     }
     .day-title {
-        color: #0F766E;
-        border-bottom: 3px solid #0F766E;
+        color: #1E3A8A;
+        border-bottom: 3px solid #1E3A8A;
         padding-bottom: 6px;
         margin-bottom: 15px;
         font-size: 1.6rem;
@@ -34,14 +34,14 @@ st.markdown("""
     .instruction-box {
         background-color: #f8f9fa;
         color: #212529 !important;
-        border-left: 5px solid #0F766E;
+        border-left: 5px solid #1E3A8A;
         padding: 15px;
         border-radius: 4px;
         margin-bottom: 20px;
         line-height: 1.6;
     }
     .instruction-box h4 {
-        color: #0F766E !important;
+        color: #1E3A8A !important;
         margin-top: 0;
         margin-bottom: 10px;
         font-weight: bold;
@@ -51,7 +51,7 @@ st.markdown("""
         margin-bottom: 0;
     }
     div.stButton > button:first-child {
-        background-color: #0F766E;
+        background-color: #1E3A8A;
         color: white !important;
         border-radius: 6px;
         border: none;
@@ -59,11 +59,13 @@ st.markdown("""
         padding: 8px 16px;
     }
     div.stButton > button:first-child:hover {
-        background-color: #115e59;
+        background-color: #1d4ed8;
         color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
+
+st.markdown('<div class="day-banner">🔵 思考・表現力セッション（自分用・事前準備）</div>', unsafe_allow_html=True)
 
 # Supabase初期化
 @st.cache_resource
@@ -88,14 +90,8 @@ if "GEMINI_API_KEY" in st.secrets:
 if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 
-# ログイン状態に応じたバナータイトルの切り替え
-if st.session_state.is_admin:
-    st.markdown('<div class="day-banner">🔵 思考・表現力セッション（事前準備）</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="day-banner">🔵 思考・表現力セッション</div>', unsafe_allow_html=True)
-
 # ----------------------------------------------------
-# 補助関数（全4アプリ共通のシンプル・頑健ロジック）
+# 補助関数（全アプリ共通のシンプル・頑健ロジック）
 # ----------------------------------------------------
 def analyze_text_simple(text):
     judging = "Te型（効率・構造化）" if any(w in text for w in ["効率", "計画", "目標", "構造", "成果", "システム"]) else \
@@ -112,10 +108,8 @@ def analyze_text_simple(text):
 
 def calculate_scores(text, types_list):
     types_str = " ".join(types_list)
-    risk_keywords = ["違反", "不正", "力こそが正義", "馬鹿", "軍人", "SEX", "オナニー", "ブルマー", "いびっ", "ナンパ"]
-    has_risk = any(k in text for k in risk_keywords)
     
-    if len(text) < 30 or has_risk:
+    if len(text) < 38:
         base = 20
     else:
         base = 45 + (len(text) % 25)
@@ -139,8 +133,6 @@ def calculate_scores(text, types_list):
         scores[k] = max(10, min(95, scores[k]))
     return scores
 
-def get_default_before_law_report(text):
-    
     if len(text) < 30:
         return (
             "【AI面接事前準備レポート（深掘り質問ガイド）】\n"
@@ -177,7 +169,7 @@ if not st.session_state.is_admin:
     st.sidebar.subheader("🔒 管理者ログイン")
     password_input = st.sidebar.text_input("パスワードを入力", type="password")
     if st.sidebar.button("ログイン"):
-        if password_input == "7777":  # 自分用パスワード
+        if password_input == "7777":
             st.session_state.is_admin = True
             st.rerun()
         else:
@@ -205,12 +197,12 @@ if not st.session_state.is_admin:
     
     st.markdown("""
     <div class="instruction-box">
-        <h4 style="margin-top: 0; color: #0F766E;">【事前提出のご案内】</h4>
+        <h4 style="margin-top: 0; color: #1E3A8A;">【事前提出のご案内】</h4>
         <p style="margin-bottom: 0;">本アンケートは、明日のセッション・面接をより実りあるものにするため、事前に皆様の日常的なお考えや仕事観をお伺いするものです。正解・不正解はございませんので、リラックスしてご自身の率直なお考えをご回答ください。</p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.form(key="candidate_form_before_law"):
+    with st.form(key="candidate_form_before"):
         applicant_name = st.text_input("お名前（氏名）", placeholder="例：山田 太郎")
         applicant_text = st.text_area("思考・表現力に関する記述", height=150, placeholder="ご自身の考えや価値観、これまでの経験で大切にしてきたこと等を自由にご記入ください。")
         submit_button = st.form_submit_button(label="事前回答を提出する")
@@ -233,7 +225,7 @@ if not st.session_state.is_admin:
                 st.error(f"送信時にエラーが発生しました: {e}")
 
 # ----------------------------------------------------
-# B. 管理者画面（ai_memo_before_law カラムを使用）
+# B. 管理者画面（ai_memo_before カラムを使用）
 # ----------------------------------------------------
 else:
     st.markdown('<h1 class="day-title">【管理者用】事前準備・面接深掘りガイド</h1>', unsafe_allow_html=True)
@@ -257,23 +249,32 @@ else:
                 col_left, col_right = st.columns([1.1, 1])
                 
                 with col_left:
-                    st.markdown(f"### 👤 応募者氏名: **{selected_candidate.get('name')}**")
-                    st.markdown("#### 【事前記述内容】")
+                    st.markdown(f"### 👤 応募者氏名：**{selected_candidate.get('name')}**")
+                    st.markdown(f"#### 【事前記述内容】")
                     st.info(candidate_text if candidate_text else "記述内容がありません。")
+
+                    st.markdown(f"### 【判定タイプ ＆ 認知特性スコア】")
+                    import json
+            
+                    # 判定タイプを安全にきれいな日本語文字列に変換して表示
+    if isinstance(candidate_types, (list, tuple)):
+        types_display = ", ".join(str(t) for t in candidate_types)
+    elif isinstance(candidate_types, dict):
+        types_display = ", ".join(f"{k}: {v}" for k, v in candidate_types.items())
+    else:
+        types_display = str(candidate_types)
+
+    st.write(f"判定タイプ / 認知特性 : {types_display}")
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("Te (効率)", f"{scores_dict['Te']}点")
+                        c2.metric("Ti (論理)", f"{scores_dict['Ti']}点")
+                        c3.metric("Fe (調和)", f"{scores_dict['Fe']}点")
+                        c4.metric("Fi (内省)", f"{scores_dict['Fi']}点")
                     
-                    st.markdown("#### 【判定タイプ & 認知特性スコア】")
-                    st.write(f"判定タイプ / 認知特性: `{candidate_types}`")
-                    
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("Te (効率)", f"{scores_dict['Te']}点")
-                    c2.metric("Ti (論理)", f"{scores_dict['Ti']}点")
-                    c3.metric("Fe (調和)", f"{scores_dict['Fe']}点")
-                    c4.metric("Fi (内省)", f"{scores_dict['Fi']}点")
-                    
-                    c1.metric("Se (実行)", f"{scores_dict['Se']}点")
-                    c2.metric("Si (確実)", f"{scores_dict['Si']}点")
-                    c3.metric("Ne (発想)", f"{scores_dict['Ne']}点")
-                    c4.metric("Ni (洞察)", f"{scores_dict['Ni']}点")
+                        c1.metric("Se (実行)", f"{scores_dict['Se']}点")
+                        c2.metric("Si (確実)", f"{scores_dict['Si']}点")
+                        c3.metric("Ne (発想)", f"{scores_dict['Ne']}点")
+                        c4.metric("Ni (洞察)", f"{scores_dict['Ni']}点")
 
                 with col_right:
                     st.markdown("#### 【思考・認知特性レーダーチャート】")
@@ -283,8 +284,8 @@ else:
                         r=values + [values[0]],
                         theta=categories + [categories[0]],
                         fill='toself',
-                        fillcolor='rgba(15, 118, 110, 0.4)',
-                        line=dict(color='#0F766E', width=2)
+                        fillcolor='rgba(30, 58, 138, 0.4)',
+                        line=dict(color='#1E3A8A', width=2)
                     ))
                     fig.update_layout(
                         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
@@ -297,12 +298,12 @@ else:
                 st.markdown("---")
                 st.markdown("### 📝 AI面接前日準備・質問設計ガイド")
                 
-                saved_memo = selected_candidate.get("ai_memo_before_law", "")
+                saved_memo = selected_candidate.get("ai_memo_before", "")
                 
                 if not saved_memo or "選考評価＆配属活用レポート" in str(saved_memo):
-                    default_memo = get_default_before_law_report(candidate_text.strip())
+                    default_memo = get_default_before_report(candidate_text.strip())
                     try:
-                        supabase.table("candidate_responses").update({"ai_memo_before_law": default_memo}).eq("id", record_id).execute()
+                        supabase.table("candidate_responses").update({"ai_memo_before": default_memo}).eq("id", record_id).execute()
                     except Exception:
                         pass
                 else:
@@ -315,7 +316,7 @@ else:
                 with btn_c1:
                     if st.button("💾 事前メモをデータベースに保存する"):
                         try:
-                            supabase.table("candidate_responses").update({"ai_memo_before_law": memo_input}).eq("id", record_id).execute()
+                            supabase.table("candidate_responses").update({"ai_memo_before": memo_input}).eq("id", record_id).execute()
                             st.success("事前メモを保存しました。")
                         except Exception as e:
                             st.error(f"保存エラー: {e}")
