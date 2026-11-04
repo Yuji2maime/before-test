@@ -90,9 +90,9 @@ if "is_admin" not in st.session_state:
 
 # ログイン状態に応じたバナータイトルの切り替え
 if st.session_state.is_admin:
-    st.markdown('<div class="day-banner">🟢 思考・表現力セッション（事前準備）</div>', unsafe_allow_html=True)
+    st.markdown('<div class="day-banner">🔵 思考・表現力セッション（事前準備）</div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div class="day-banner">🟢 思考・表現力セッション</div>', unsafe_allow_html=True)
+    st.markdown('<div class="day-banner">🔵 思考・表現力セッション</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
 # 補助関数（全4アプリ共通のシンプル・頑健ロジック）
