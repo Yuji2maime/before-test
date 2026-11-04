@@ -108,10 +108,8 @@ def analyze_text_simple(text):
 
 def calculate_scores(text, types_list):
     types_str = " ".join(types_list)
-    risk_keywords = ["違反", "不正", "力こそが正義", "馬鹿", "軍人", "SEX", "オナニー", "ブルマー", "いびっ"]
-    has_risk = any(k in text for k in risk_keywords)
     
-    if len(text) < 30 or has_risk:
+    if len(text) < 38:
         base = 20
     else:
         base = 45 + (len(text) % 25)
