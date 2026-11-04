@@ -275,7 +275,7 @@ else:
                         c1.metric("Se (実行)", f"{scores_dict['Se']}点")
                         c2.metric("Si (確実)", f"{scores_dict['Si']}点")
                         c3.metric("Ne (発想)", f"{scores_dict['Ne']}点")
-                        ＾c4.metric("Ni (洞察)", f"{scores_dict['Ni']}点")
+                        c4.metric("Ni (洞察)", f"{scores_dict['Ni']}点")
 
                 with col_right:
                     st.markdown("#### 【思考・認知特性レーダーチャート】")
