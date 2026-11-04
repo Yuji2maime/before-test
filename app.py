@@ -3,10 +3,11 @@ from supabase import create_client
 import google.generativeai as genai
 import pandas as pd
 import plotly.graph_objects as go
-page_icon="🔵",
+
 # 1. ページ基本設定（自分用・事前準備）
 st.set_page_config(
     page_title="思考・表現力セッション（自分用・事前準備）",
+    page_icon="🔵",
     
     layout="wide"
 )
