@@ -253,33 +253,33 @@ else:
                     st.markdown(f"#### 【事前記述内容】")
                     st.info(candidate_text if candidate_text else "記述内容がありません。")
 
-                    st.markdown(f"### 【判定タイプ ＆ 認知特性スコア】")
+                    st.markdown(f"### 【判定タイプ & 認知特性スコア】")
                     import json
-            
+
                     # 判定タイプを安全にきれいな日本語文字列に変換して表示
-    if isinstance(candidate_types, (list, tuple)):
-        types_display = ", ".join(str(t) for t in candidate_types)
-    elif isinstance(candidate_types, dict):
-        types_display = ", ".join(f"{k}: {v}" for k, v in candidate_types.items())
-    else:
-        types_display = str(candidate_types)
+                    if isinstance(candidate_types, (list, tuple)):
+                        types_display = " , ".join(str(t) for t in candidate_types)
+                    elif isinstance(candidate_types, dict):
+                        types_display = " , ".join(f"{k}: {v}" for k, v in candidate_types.items())
+                    else:
+                        types_display = str(candidate_types)
 
-    st.write(f"判定タイプ / 認知特性 : {types_display}")
-                        c1, c2, c3, c4 = st.columns(4)
-                        c1.metric("Te (効率)", f"{scores_dict['Te']}点")
-                        c2.metric("Ti (論理)", f"{scores_dict['Ti']}点")
-                        c3.metric("Fe (調和)", f"{scores_dict['Fe']}点")
-                        c4.metric("Fi (内省)", f"{scores_dict['Fi']}点")
-                    
-                        c1.metric("Se (実行)", f"{scores_dict['Se']}点")
-                        c2.metric("Si (確実)", f"{scores_dict['Si']}点")
-                        c3.metric("Ne (発想)", f"{scores_dict['Ne']}点")
-                        c4.metric("Ni (洞察)", f"{scores_dict['Ni']}点")
+                    st.write(f"判定タイプ / 認知特性：{types_display}")
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("Te（効率）", f"{scores_dict['Te']}点")
+                    c2.metric("Ti（論理）", f"{scores_dict['Ti']}点")
+                    c3.metric("Fe（調和）", f"{scores_dict['Fe']}点")
+                    c4.metric("Fi（内省）", f"{scores_dict['Fi']}点")
 
-                with col_right:
-                    st.markdown("#### 【思考・認知特性レーダーチャート】")
-                    categories = ['Te', 'Ti', 'Fe', 'Fi', 'Se', 'Si', 'Ne', 'Ni']
-                    values = [scores_dict[k] for k in categories]
+                    c1.metric("Se（実行）", f"{scores_dict['Se']}点")
+                    c2.metric("Si（確実）", f"{scores_dict['Si']}点")
+                    c3.metric("Ne（発想）", f"{scores_dict['Ne']}点")
+                    c4.metric("Ni（洞察）", f"{scores_dict['Ni']}点")
+
+                    with col_right:
+                        st.markdown("### 【思考・認知特性レーダーチャート】")
+                        categories = ['Te', 'Ti', 'Fe', 'Fi', 'Se', 'Si', 'Ne', 'Ni']
+                        values = [scores_dict[k] for k in categories]
                     fig = go.Figure(data=go.Scatterpolar(
                         r=values + [values[0]],
                         theta=categories + [categories[0]],
