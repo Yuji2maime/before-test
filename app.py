@@ -107,6 +107,7 @@ def analyze_text_simple(text):
     return [judging, f"補助{perceiving}"]
 
 def calculate_scores(text, types_list):
+    has_risk = False
     types_str = " ".join(types_list)
     
     if len(text) < 38:
